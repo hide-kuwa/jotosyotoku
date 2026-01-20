@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>TAXX-分離課税譲渡所得シミュレーション (修正完了版)</title>
+    <style>
+        /* --- 基本スタイル --- */
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1100px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1, h2, h3, h4 { margin-top: 0; }
+        
+        /* タブ */
+        .tabs { margin-bottom: 20px; border-bottom: 2px solid #ddd; display: flex; }
+        .tab-btn { padding: 12px 25px; cursor: pointer; background: #eee; border: none; font-weight: bold; margin-right: 5px; border-radius: 5px 5px 0 0; transition: 0.3s; }
+        .tab-btn:hover { background: #ddd; }
+        .tab-btn.active { background: #0056b3; color: white; }
+        .tab-content { display: none; padding-top: 20px; }
+        .tab-content.active { display: block; }
+
+        /* フォーム */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: #555; }
+        input[type="text"].money-input { text-align: right; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; }
+        .row { display: flex; gap: 30px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 300px; }
+
+        /* 折りたたみエリア */
+        .advanced-section { margin-top: 20px; border: 1px solid #ddd; border-radius: 6px; background-color: #fafafa; overflow: hidden; }
+        .advanced-header { padding: 15px; background-color: #f1f3f5; cursor: pointer; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .advanced-body { padding: 20px; display: none; border-top: 1px solid #ddd; }
+        .advanced-body.open { display: block; }
+        .toggle-icon { transition: transform 0.3s; }
+        .open .toggle-icon { transform: rotate(180deg); }
+
+        /* ボタン */
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; color: white; transition: 0.2s; }
+        .btn-primary { background-color: #007bff; }
+        .btn-success { background-color: #28a745; }
+        .btn-info    { background-color: #17a2b8; }
+        .btn-warning { background-color: #ffc107; color: #333; }
+        .btn-danger  { background-color: #dc3545; }
+        .btn-restore { background-color: #6610f2; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* テーブル類 */
+        .master-table, .history-table, .std-ref-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 10px; }
+        .master-table th, .history-table th, .std-ref-table th { background: #f1f3f5; padding: 10px; border: 1px solid #ddd; text-align: left; }
+        .master-table td, .history-table td, .std-ref-table td { border: 1px solid #ddd; padding: 8px; vertical-align: middle; }
+        .master-table input { border: 1px solid transparent; width: 100%; background: transparent; outline: none; padding: 4px; }
+        
+        /* レポートエリア */
+        #reportArea { margin-top: 40px; display: none; }
+        .sheet { background: white; padding: 40px; margin-bottom: 40px; border: 1px solid #ddd; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .sheet-header { border-bottom: 2px solid #333; margin-bottom: 20px; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: end; }
+        .sheet-title { font-size: 24px; font-weight: bold; }
+        .detail-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px; }
+        .detail-table th, .detail-table td { border: 1px solid #bbb; padding: 8px 12px; }
+        .detail-table th { background-color: #f0f0f0; width: 35%; text-align: left; }
+        .detail-table td { text-align: right; }
+        .detail-table td.left { text-align: left; }
+        
+        .calc-block { background: #f9f9f9; padding: 10px; border: 1px dashed #ccc; margin-top: 5px; font-family: Consolas, monospace; font-size: 0.95em; color: #444; }
+        .calc-val { font-weight: bold; color: #000; }
+        .amount-large { font-size: 1.4em; font-weight: bold; color: #0056b3; }
+        .amount-result { font-size: 1.2em; font-weight: bold; }
+        .tag-alert { color: red; font-weight: bold; font-size: 0.8em; display: block; margin-top: 2px; }
+        .tag-win { color: #d9534f; font-weight: bold; font-size: 0.9em; margin-left: 10px; }
+        .input-check-table th { background-color: #e9ecef; color: #495057; }
+        .input-check-table td { text-align: left; }
+
+        /* 標準額計算書 */
+        .std-calc-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 2px solid #333; }
+        .std-calc-table th, .std-calc-table td { border: 1px solid #333; padding: 10px; text-align: center; }
+        .std-calc-table th { background-color: #eef; width: 40%; text-align: left; }
+        .std-calc-table td.input-like { font-family: "Courier New", monospace; font-weight: bold; font-size: 1.1em; }
+        .link-box { margin: 10px 0 20px 0; padding: 10px; background: #e3f2fd; border-radius: 5px; font-size: 0.9em; }
+        .link-box a { margin-right: 20px; color: #0056b3; text-decoration: none; border-bottom: 1px solid #0056b3; }
+
+        /* 日付入力のヒント */
+        .date-hint { font-size:0.8em; color:#888; margin-top:3px; display:block; }
+
+        @media print {
+            body { background: white; padding: 0; margin: 0; }
+            .container { box-shadow: none; width: 100%; max-width: 100%; padding: 0; margin: 0; }
+            .no-print, .tabs, .tab-content { display: none !important; }
+            #reportArea { display: block !important; margin: 0; border: none; }
+            .sheet { border: none; box-shadow: none; margin: 0; padding: 20px 40px; height: auto; }
+            .page-break { page-break-before: always; }
+            .report-actions { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="no-print">
+        <h1>TAXX-分離課税譲渡所得シミュレーション</h1>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('input')">① 入力フォーム</button>
+            <button class="tab-btn" onclick="switchTab('history')">② 履歴リスト</button>
+            <button class="tab-btn" onclick="switchTab('config')">③ マスタ設定</button>
+        </div>
+    </div>
+
+    <div id="tab-input" class="tab-content active">
+        <div class="no-print">
+            <div class="row">
+                <div class="col">
+                    <h3 style="border-bottom:2px solid #007bff; padding-bottom:5px; color:#007bff;">1. 基本情報</h3>
+                    <div class="form-group">
+                        <label>クライアント名 / 物件名</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="clientName" placeholder="顧客名">
+                            <input type="text" id="propertyName" placeholder="物件名">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>売却価格 (譲渡対価) [円]</label>
+                        <input type="text" id="sellPrice" class="money-input" value="50,000,000" oninput="formatCurrency(this)">
+                    </div>
+                    <div class="form-group">
+                        <label>取得費: 土地・建物 購入額合計 (税込) [円]</label>
+                        <input type="text" id="buyPriceTotal" class="money-input" value="40,000,000" oninput="formatCurrency(this)">
+                    </div>
+                    
+                    <div class="form-group" style="background:#fff3e0; padding:10px; border-radius:4px; border:1px solid #ffe0b2;">
+                        <label style="color:#e65100;">取得費: うち建物価格 [円]</label>
+                        <div id="manualBuildingInput">
+                            <input type="text" id="buildingPrice" class="money-input" value="20,000,000" oninput="formatCurrency(this)">
+                        </div>
+                        
+                        <div id="bookValueArea" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #e65100;">
+                            <label style="color:#d84315;">売却時の帳簿価額 (未償却残高) [円]</label>
+                            <input type="text" id="bookValue" class="money-input" placeholder="※決算書の期末簿価を入力" oninput="formatCurrency(this)">
+                            <small style="color:#d84315;">※ここに入力すると自動計算を行わず、この金額を建物取得費とします。</small>
+                        </div>
+
+                        <div class="advanced-section" style="margin-top:10px; border-color:#ffcc80;">
+                            <div class="advanced-header" onclick="toggleStandardCalc()" style="background:#ffe0b2; padding:10px;">
+                                <span style="color:#e65100;">▼ 建物価格が不明な場合 (標準額計算)</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="advanced-body" id="standardCalcBody" style="background:#fff;">
+                                <p style="font-size:0.9em; margin-bottom:10px;">国税庁「建物の標準的な建築価額表」に基づき推定します。</p>
+                                <div class="form-group">
+                                    <label>建物の延床面積 (㎡)</label>
+                                    <input type="number" id="floorArea" placeholder="例: 100.00">
+                                </div>
+                                <div class="form-group">
+                                    <label>建物の建築年月日</label>
+                                    <input type="text" id="buildDate" placeholder="例: H12.1.1 / 2000/1/1" value="2000/1/1">
+                                    <small class="date-hint">※西暦・和暦どちらでも入力可 (例: S50.1.1, R3/1/1)</small>
+                                </div>
+                                <div style="text-align:right;">
+                                    <input type="checkbox" id="useStandardPrice" onchange="updateBuildingInputState()">
+                                    <label for="useStandardPrice" style="display:inline; font-weight:bold; color:#d32f2f;">この計算結果を取得費として使用する</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col">
+                    <h3 style="border-bottom:2px solid #007bff; padding-bottom:5px; color:#007bff;">2. 経費・期間・構造</h3>
+                    <div class="form-group">
+                        <label>購入時の諸経費 [円]</label>
+                        <input type="text" id="buyExpenses" class="money-input" value="1,500,000" oninput="formatCurrency(this)">
+                        <small id="buyExpNote" style="color:#666; display:none;">※簿価入力時、取得経費が簿価に含まれている場合は0にしてください</small>
+                    </div>
+                    <div class="form-group">
+                        <label>売却時の諸経費 [円]</label>
+                        <input type="text" id="sellExpenses" class="money-input" value="1,800,000" oninput="formatCurrency(this)">
+                    </div>
+
+                    <div style="background:#f0f8ff; padding:10px; border-radius:4px; border:1px solid #bee5eb; margin-bottom:15px;">
+                        <div class="form-group">
+                            <label>建物の建築年月日 (築年数計算用)</label>
+                            <input type="text" id="buildDateMain" placeholder="例: H12.1.1 / 2000/1/1" value="2000/1/1" onchange="syncBuildDate(this.value)">
+                            <small class="date-hint">※和暦入力可 (例: 昭和50年1月1日, S50.1.1)</small>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <div class="form-group" style="flex:1;">
+                                <label>購入日 (取得日)</label>
+                                <input type="text" id="buyDate" placeholder="例: H30.5.1" value="2018/5/1">
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label>売却日 (引渡日)</label>
+                                <input type="text" id="sellDate" placeholder="例: R7.4.1" value="2025/4/1">
+                            </div>
+                        </div>
+                        <div class="date-hint" style="text-align:center;">H=平成, R=令和, S=昭和 等のイニシャルも使用可能です</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>構造・用途</label>
+                        <div style="display:flex; gap:10px;">
+                            <select id="structureSelect" style="flex:1;"></select>
+                            <select id="usageType" style="flex:1;" onchange="toggleBookValueInput()">
+                                <option value="non_business">非事業用 (マイホーム等)</option>
+                                <option value="business">事業用 (賃貸・店舗等)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="advanced-section">
+                <div class="advanced-header" onclick="toggleAdvanced()">
+                    <span>▼ 特例適用・詳細設定</span>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="advanced-body" id="advancedBody">
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label>特別控除</label>
+                                <select id="specialDeductionType" onchange="toggleDeductionInput()">
+                                    <option value="none">なし</option>
+                                    <option value="residence_30m">居住用財産 (最大3,000万円)</option>
+                                    <option value="empty_house">被相続人居住用 [空き家] (最大3,000万/2,000万)</option>
+                                    <option value="manual">その他 (手入力)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>控除適用額 [円]</label>
+                                <input type="text" id="specialDeductionAmount" class="money-input" value="0" disabled style="background:#eee;" oninput="formatCurrency(this)">
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="form-group">
+                                <label>税率・加算の特例</label>
+                                <div><input type="checkbox" id="isReducedRate"><label for="isReducedRate" style="display:inline;">軽減税率 (10年超居住用)</label></div>
+                                <div style="margin-top:10px;">
+                                    <input type="checkbox" id="isInheritanceAdd" onchange="toggleInheritanceInput()">
+                                    <label for="isInheritanceAdd" style="display:inline;">相続税を取得費に加算</label>
+                                    <input type="text" id="inheritanceTaxAmount" class="money-input" placeholder="加算する相続税額" style="display:none; margin-top:5px;" oninput="formatCurrency(this)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:30px; background:#f0f8ff; padding:20px; border-radius:8px; text-align:center;">
+                <button class="btn btn-primary" style="width:100%; max-width:400px; padding:15px; font-size:1.2em;" onclick="calculate()">計算書を作成する</button>
+                <p style="font-size:12px; color:#666; margin-top:10px;">※減価償却(簡便法対応)および標準額計算書も出力されます</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-history" class="tab-content">
+        <div style="margin-bottom:15px; display:flex; gap:10px;">
+            <button class="btn btn-info" onclick="exportSelected()">CSV書出 (全項目)</button>
+            <button class="btn btn-warning" onclick="document.getElementById('csvFileInput').click()">CSV取込</button>
+            <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importCSV(this)">
+            <button class="btn btn-danger" onclick="clearHistory()" style="margin-left:auto;">全削除</button>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="history-table">
+                <thead>
+                    <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>顧客/物件</th><th>売却額</th><th>利益</th><th>税金</th><th>操作</th></tr>
+                </thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-config" class="tab-content">
+        <h3>⚙️ マスタ設定 (構造・耐用年数)</h3>
+        <div class="link-box">
+            <strong>🔗 公式参照リンク:</strong><br>
+            <a href="https://www.nta.go.jp/taxes/shiraberu/saigai/h30/0018008-045/05.htm" target="_blank">非事業用 償却率表 (国税庁)</a>
+            <a href="https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/pdf/2100_02.pdf" target="_blank">事業用 償却率表 (国税庁)</a>
+        </div>
+        <table class="master-table">
+            <thead><tr><th style="width:30%">構造名称</th><th style="width:15%">法定耐用年数(年)</th><th style="width:15%">非事業用 償却率</th><th style="width:15%">事業用 償却率</th></tr></thead>
+            <tbody id="masterTableBody"></tbody>
+        </table>
+        <h3 style="margin-top:40px; border-top:2px dashed #ccc; padding-top:20px;">📊 標準的な建築価額表</h3>
+        <div class="link-box"><a href="https://www.nta.go.jp/taxes/shiraberu/shinkoku/syotoku/joto/pdf/001.pdf" target="_blank">🔗 建物の標準的な建築価額表 (PDF)</a></div>
+        <table class="std-ref-table">
+            <thead><tr><th>建築年 (開始)</th><th>木造</th><th>鉄骨鉄筋(SRC)</th><th>鉄筋(RC)</th><th>鉄骨</th></tr></thead>
+            <tbody id="stdRefTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="reportArea">
+        <div class="report-actions no-print" style="margin-bottom:20px; text-align:right; background:#eee; padding:10px;">
+            <button class="btn btn-success" onclick="saveToHistory()">💾 履歴に保存</button>
+            <button class="btn btn-primary" onclick="window.print()" style="margin-left:10px;">🖨 印刷</button>
+        </div>
+        <div class="sheet">
+            <div class="sheet-header"><div class="sheet-title">不動産売却 手取りシミュレーション</div><div style="text-align:right;"><div id="c_clientName" style="font-weight:bold;"></div><div id="c_date"></div></div></div>
+            <p>以下の条件で売却した場合の概算結果です。</p>
+            <table class="detail-table">
+                <tr><th>売却予定価格</th><td class="amount-large" id="c_sellPrice"></td></tr>
+                <tr><th>概算諸経費合計 (購入時+売却時)</th><td id="c_totalExpenses"></td></tr>
+                <tr><th>減価償却費相当額 <span style="font-size:0.8em;">(経年による価値減少)</span></th><td id="c_depreciation" style="color:#555;"></td></tr>
+            </table>
+            <h3 style="background:#f8f9fa; padding:10px; border-left:5px solid #007bff;">計算結果 (概算)</h3>
+            <table class="detail-table">
+                <tr><th>譲渡所得 (売却益)</th><td><span id="c_income" class="amount-result"></span><div id="c_deduction_note" class="tag-alert" style="display:none;">※特別控除適用後</div></td></tr>
+                <tr><th>所得税・住民税等 (見込)</th><td id="c_tax" style="color:#d9534f; font-weight:bold; font-size:1.3em;"></td></tr>
+                <tr style="background-color:#e8f5e9;"><th style="border-bottom:2px solid #28a745;">手取り額 (見込)</th><td id="c_profit" style="color:#28a745; font-weight:bold; font-size:1.6em;"></td></tr>
+            </table>
+        </div>
+        <div class="page-break"></div>
+        <div class="sheet pro-sheet">
+            <div class="sheet-header"><div class="sheet-title">【確認用】譲渡所得計算明細書</div><div>担当者用詳細資料</div></div>
+            <h4>0. 入力データ全確認 (Input Verification)</h4>
+            <table class="detail-table input-check-table">
+                <tr><th>顧客 / 物件</th><td class="left"><span id="p_inp_client"></span> / <span id="p_inp_prop"></span></td></tr>
+                <tr><th>日付情報</th><td class="left">建築: <span id="p_inp_date_build"></span><br>購入: <span id="p_inp_date_buy"></span><br>売却: <span id="p_inp_date_sell"></span></td></tr>
+                <tr><th>構造 / 用途</th><td class="left"><span id="p_inp_structure"></span> / <span id="p_inp_usage"></span></td></tr>
+                <tr><th>金額 (入力値)</th><td class="left">売値: <span id="p_inp_sell"></span><br>購入総額: <span id="p_inp_buy_total"></span> (うち建物: <span id="p_inp_build"></span>)<br>諸経費: 購入時 <span id="p_inp_exp_buy"></span> / 売却時 <span id="p_inp_exp_sell"></span><br>帳簿価額入力: <span id="p_inp_book"></span></td></tr>
+                <tr><th>特例・設定</th><td class="left">特別控除: <span id="p_inp_deduction"></span><br>軽減税率: <span id="p_inp_reduced"></span> / 相続加算: <span id="p_inp_inherit"></span><br>標準額計算: <span id="p_inp_std"></span></td></tr>
+            </table>
+            <h4>1. 所有期間判定</h4>
+            <table class="detail-table"><tr><th>期間 (1月1日基準)</th><td class="left"><span id="p_term_str" style="font-weight:bold;"></span> (<span id="p_term_detail"></span>)</td></tr></table>
+            <h4>2. 減価償却費の計算詳細</h4>
+            <div class="calc-block">
+                <span class="calc-label">■ 計算条件: <span id="p_dep_condition_str" style="font-weight:bold;"></span></span>
+                <div id="p_dep_life_calc" style="font-size:0.9em; color:#0056b3; margin-bottom:5px;"></div>
+                <span class="calc-label">■ 計算式</span>
+                <div id="p_dep_formula_detail" style="font-size:1.1em; padding:5px 0;"></div>
+                <div style="text-align:right; border-top:1px dashed #ccc; padding-top:5px;">減価償却費: <span id="p_dep_val_detail" class="calc-val"></span></div>
+            </div>
+            <h4>3. 取得費の判定 (有利判定)</h4>
+            <table class="detail-table">
+                <tr><th>A. 実額取得費</th><td class="left">土地・建物(<span id="p_real_base"></span>) - 償却費(<span id="p_dep_val_sm"></span>) + 購入経費(<span id="p_buy_exp"></span>)<br>= <strong id="p_real_cost_val"></strong><div id="p_std_note" style="font-size:0.8em; color:#d60; display:none;">※建物価格は標準額により推計 (3枚目参照)</div></td></tr>
+                <tr><th>B. 概算取得費 (5%)</th><td class="left">売値 × 5% = <strong id="p_gaisan_val"></strong></td></tr>
+                <tr style="background:#fff3cd;"><th>適用取得費</th><td class="left"><strong id="p_applied_cost"></strong> <span id="p_cost_verdict" class="tag-win"></span></td></tr>
+            </table>
+            <h4>4. 税額計算プロセス</h4>
+            <table class="detail-table">
+                <tr><th>課税譲渡所得</th><td class="left"><span class="math-exp" id="p_income_calc"></span> = <strong id="p_income_val" style="font-size:1.2em;"></strong></td></tr>
+                <tr><th>税率・税額</th><td class="left">適用税率: <span id="p_tax_rate_detail"></span><br><span class="math-exp" id="p_tax_calc"></span> = <strong id="p_tax_final" style="color:#d9534f;"></strong></td></tr>
+            </table>
+        </div>
+        <div class="sheet pro-sheet" id="stdPriceSheet" style="display:none;">
+            <div class="page-break"></div>
+            <div class="sheet-header"><div class="sheet-title">【計算明細】建物の標準的な建築価額による計算</div><div>国税庁参考様式準拠</div></div>
+            <p style="font-size:0.9em;">※売買契約書等で建物の価額が区分されていない場合等に使用する推計計算書です。</p>
+            <h4>(1) 減価償却の基礎となる建物の取得価額 (新築時価額の推計)</h4>
+            <table class="std-calc-table">
+                <tr><th>お売りになった建物の建築年月日</th><td>①</td><td class="input-like" id="std_buildDate"></td></tr>
+                <tr><th>標準的な建築価額表で求めた建築単価</th><td>②</td><td class="input-like"><span id="std_unitPrice"></span> 円/㎡</td></tr>
+                <tr><th>その建物の床面積 (延べ床面積)</th><td>③</td><td class="input-like"><span id="std_area"></span> ㎡</td></tr>
+                <tr style="background:#f9f9f9;"><th>その建物の取得価額 (新築時)</th><td>④ (②×③)</td><td class="input-like"><span id="std_newPrice"></span> 円</td></tr>
+            </table>
+            <div id="std_used_section">
+                <h4>(2) 中古建物の場合の取得価額 (購入までの減価控除)</h4>
+                <table class="std-calc-table">
+                    <tr><th>お売りになった建物をお買いになった日</th><td>⑤</td><td class="input-like" id="std_buyDate"></td></tr>
+                    <tr><th>建築年月日(①)から購入日(⑤)までの経過年数</th><td>⑥</td><td class="input-like"><span id="std_elapsed"></span> 年</td></tr>
+                    <tr><th>購入日までに減価した額 (④ × 0.9 × 償却率 × ⑥)</th><td>⑧</td><td class="input-like"><span id="std_preDep"></span> 円</td></tr>
+                    <tr style="background:#fff3e0;"><th>その建物が中古建物の場合の取得価額</th><td>⑨ (④-⑧)</td><td class="input-like"><span id="std_finalPrice"></span> 円</td></tr>
+                </table>
+            </div>
+            <div style="margin-top:20px; border:1px solid #ccc; padding:15px;">
+                <strong>【土地の取得価額】</strong><br>
+                全体の購入価額 <span id="std_totalBuy" style="font-weight:bold;"></span> 円 - 建物の取得価額 <span id="std_deductBuild" style="font-weight:bold;"></span> 円 = <span id="std_landResult" style="font-size:1.2em; font-weight:bold; color:#0056b3;"></span> 円
+            </div>
+            <div id="std_ref_table_area" style="margin-top:40px; border-top:2px dashed #ccc; padding-top:20px;">
+                <h4>【参考】システム搭載 標準建築価額表 (単位:千円/㎡)</h4>
+                <table class="std-ref-table">
+                    <thead><tr><th>建築年 (開始)</th><th>木造</th><th>鉄骨鉄筋(SRC)</th><th>鉄筋(RC)</th><th>鉄骨</th></tr></thead>
+                    <tbody id="stdRefTableBody2"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- マスタデータ ---
+    const defaultMaster = [
+        { name: "木造", life: 22 },
+        { name: "木造モルタル", life: 20 },
+        { name: "鉄骨鉄筋(SRC/RC)", life: 47 },
+        { name: "鉄骨(重量)", life: 34 },
+        { name: "鉄骨(軽量)", life: 19 }
+    ];
+    const STD_PRICES = {
+        ranges: [
+            { y: 1975, p: [67.7, 126.4, 97.4, 60.5] }, { y: 1980, p: [92.5, 149.4, 129.7, 84.1] }, { y: 1985, p: [104.2, 172.2, 144.5, 96.9] },
+            { y: 1989, p: [123.1, 237.3, 193.3, 128.4] }, { y: 1995, p: [158.3, 228.8, 199.0, 143.2] }, { y: 2000, p: [159.0, 204.3, 182.6, 132.3] },
+            { y: 2005, p: [151.9, 185.7, 171.5, 132.8] }, { y: 2010, p: [156.5, 226.4, 205.9, 163.0] }, { y: 2015, p: [165.4, 262.2, 240.2, 197.3] },
+            { y: 2019, p: [170.1, 363.3, 285.6, 228.8] }
+        ]
+    };
+
+    let currentCalculation = null;
+
+    window.onload = function() {
+        renderMasterTable(); renderStdRefTables(); renderHistory();
+        document.querySelectorAll('.money-input').forEach(el => formatCurrency(el));
+    };
+
+    function formatCurrency(input) {
+        let val = input.value.replace(/[^0-9]/g, '');
+        if(val === '') input.value = '';
+        else input.value = Number(val).toLocaleString();
+    }
+
+    // --- Date Parsing (Seireki / Gengo) ---
+    function parseDate(inputStr) {
+        if(!inputStr) return new Date();
+        
+        // Normalize: full-width to half-width, trim
+        let s = inputStr.replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(s) {
+            return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+        }).trim();
+
+        // 1. Check for Standard Western (YYYY/MM/DD, YYYY-MM-DD, YYYY.MM.DD)
+        if(s.match(/^\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}$/)) {
+            return new Date(s.replace(/[\.\-]/g, '/'));
+        }
+        // 2. Check for YYYYMMDD
+        if(s.match(/^\d{8}$/)) {
+            let y = s.substr(0,4), m = s.substr(4,2), d = s.substr(6,2);
+            return new Date(`${y}/${m}/${d}`);
+        }
+
+        // 3. Gengo Parsing
+        // Patterns: H30.5.1, R3/1/1, S50-1-1, 明治/大正/昭和/平成/令和
+        const eras = [
+            { k: 'M', j: '明治', base: 1868 },
+            { k: 'T', j: '大正', base: 1912 },
+            { k: 'S', j: '昭和', base: 1926 },
+            { k: 'H', j: '平成', base: 1989 },
+            { k: 'R', j: '令和', base: 2019 }
+        ];
+
+        // Regex to capture Era, Year, Month, Day
+        // Handles: "S50.1.1", "昭和50年1月1日", "R 3. 1. 1"
+        const regex = /([MTSHR明治大正昭和平成令和])\s*(\d{1,2})[\.\/\-年]\s*(\d{1,2})[\.\/\-月]\s*(\d{1,2})[日]?/i;
+        const match = s.match(regex);
+
+        if(match) {
+            const eraStr = match[1];
+            const eraY = parseInt(match[2]);
+            const m = parseInt(match[3]);
+            const d = parseInt(match[4]);
+
+            let year = 0;
+            for(let e of eras) {
+                if(eraStr.toUpperCase() === e.k || eraStr === e.j) {
+                    year = e.base + eraY - 1; 
+                    break;
+                }
+            }
+            if(year > 0) return new Date(year, m - 1, d);
+        }
+
+        // Fallback: try standard Date parse, or return current date if fail
+        let d = new Date(s);
+        if(isNaN(d.getTime())) return new Date();
+        return d;
+    }
+
+    // --- UI Actions ---
+    function toggleBookValueInput() {
+        const usage = document.getElementById('usageType').value;
+        const bookArea = document.getElementById('bookValueArea');
+        const buyExpNote = document.getElementById('buyExpNote');
+        
+        if(usage === 'business') {
+            bookArea.style.display = 'block';
+            buyExpNote.style.display = 'block';
+        } else {
+            bookArea.style.display = 'none';
+            document.getElementById('bookValue').value = '';
+            buyExpNote.style.display = 'none';
+        }
+    }
+
+    function calculate() {
+        try {
+            const inp = getInput();
+            const master = getMasterRow(inp.strIdx);
+
+            // 標準額計算
+            let buildingPrice = num('buildingPrice');
+            let stdCalcData = null;
+            if(inp.useStd) {
+                const unitPrice = getStandardUnitPrice(inp.buildDate.getFullYear(), inp.strIdx);
+                const newBuildPrice = unitPrice * inp.floorArea;
+                let yDiff = inp.buyDate.getFullYear() - inp.buildDate.getFullYear();
+                let mDiff = inp.buyDate.getMonth() - inp.buildDate.getMonth();
+                if(mDiff < 0) { yDiff--; mDiff += 12; }
+                let elapsedWait = yDiff + (mDiff >= 6 ? 1 : 0);
+                if(elapsedWait < 0) elapsedWait = 0;
+                let finalBuildPrice = newBuildPrice;
+                let preDep = 0;
+                if(elapsedWait > 0) {
+                    let nonBizLife = Math.floor(master.life * 1.5);
+                    let rate = 1 / nonBizLife; 
+                    preDep = newBuildPrice * 0.9 * rate * elapsedWait;
+                    finalBuildPrice = newBuildPrice - preDep;
+                    if(finalBuildPrice < newBuildPrice * 0.05) finalBuildPrice = newBuildPrice * 0.05;
+                }
+                buildingPrice = Math.floor(finalBuildPrice);
+                stdCalcData = { unitPrice, newPrice: newBuildPrice, elapsed: elapsedWait, preDep, finalPrice: buildingPrice };
+            }
+
+            const yearDiff = inp.sellDate.getFullYear() - inp.buyDate.getFullYear();
+            const isLongTerm = yearDiff > 5;
+
+            // ★ 簿価モード判定
+            let useBookValueMode = (inp.usage === 'business' && inp.bookValue > 0);
+            let depAmount = 0;
+            let formulaStr = "";
+            let calcMethodText = ""; 
+            let lifeCalcDetail = "";
+
+            if(useBookValueMode) {
+                // 建物の現在価値(取得費) = 簿価 とする
+                depAmount = Math.max(0, buildingPrice - inp.bookValue);
+                formulaStr = `帳簿価額(未償却残高)を直接使用`;
+                calcMethodText = "帳簿価額入力";
+            } else {
+                // 通常の償却計算
+                let depreciationLife = 0, depreciationRate = 0;
+                if(inp.usage === 'non_business') {
+                    depreciationLife = Math.floor(master.life * 1.5);
+                    depreciationRate = Math.ceil((1 / depreciationLife) * 1000) / 1000;
+                    calcMethodText = `非事業用 (法定${master.life}年 × 1.5 = ${depreciationLife}年)`;
+                } else {
+                    let ageY = inp.buyDate.getFullYear() - inp.buildDate.getFullYear();
+                    let ageM = inp.buyDate.getMonth() - inp.buildDate.getMonth();
+                    if(ageM < 0) { ageY--; ageM += 12; }
+                    let ageAtBuy = ageY + (ageM/12);
+                    if(ageAtBuy >= master.life) {
+                        depreciationLife = Math.floor(master.life * 0.2);
+                        lifeCalcDetail = `法定${master.life}年全経過 → ${master.life}×20% = ${depreciationLife}年`;
+                    } else {
+                        let lifeVal = (master.life - ageAtBuy) + (ageAtBuy * 0.2);
+                        depreciationLife = Math.floor(lifeVal);
+                        lifeCalcDetail = `築${ageAtBuy.toFixed(1)}年 → 簡便法 = ${depreciationLife}年`;
+                    }
+                    if(depreciationLife < 2) depreciationLife = 2;
+                    depreciationRate = Math.ceil((1 / depreciationLife) * 1000) / 1000;
+                    calcMethodText = `事業用・簡便法 (${depreciationLife}年)`;
+                }
+
+                if(inp.usage === 'non_business') {
+                    let y = inp.sellDate.getFullYear() - inp.buyDate.getFullYear();
+                    let m = inp.sellDate.getMonth() - inp.buyDate.getMonth();
+                    if(m < 0) { y--; m += 12; }
+                    let elapsed = y + (m >= 6 ? 1 : 0);
+                    depAmount = buildingPrice * 0.9 * depreciationRate * elapsed;
+                    formulaStr = `${Number(buildingPrice).toLocaleString()} × 0.9 × ${depreciationRate} × ${elapsed}年`;
+                } else {
+                    let months = (inp.sellDate.getFullYear() - inp.buyDate.getFullYear()) * 12 + (inp.sellDate.getMonth() - inp.buyDate.getMonth());
+                    depAmount = buildingPrice * depreciationRate * (months/12);
+                    formulaStr = `${Number(buildingPrice).toLocaleString()} × ${depreciationRate} × ${months}ヶ月/12`;
+                }
+                if(depAmount > buildingPrice * 0.95) depAmount = buildingPrice * 0.95;
+            }
+
+            const landPrice = inp.buyTotal - buildingPrice;
+            const depreciatedBuild = useBookValueMode ? inp.bookValue : (buildingPrice - Math.floor(depAmount));
+            
+            let addInherit = inp.isInheritAdd ? inp.inheritTax : 0;
+            let realCostTotal = landPrice + depreciatedBuild + inp.buyExp + addInherit;
+            let gaisanCost = Math.floor(inp.sell * 0.05) + addInherit;
+            let appliedCost = (gaisanCost > realCostTotal) ? gaisanCost : realCostTotal;
+            let costVerdict = (gaisanCost > realCostTotal) ? "概算取得費(5%)" : "実額法";
+
+            let grossGain = Math.max(0, inp.sell - appliedCost - inp.sellExp);
+            let deduction = (inp.deductionType !== 'none') ? Math.min(inp.deductionAmount, grossGain) : 0;
+            let taxableIncome = grossGain - deduction;
+
+            let taxAmount = 0, taxRateInfo = "";
+            if(isLongTerm) {
+                if(inp.isReduced && inp.deductionType !== 'empty_house') {
+                    if(taxableIncome <= 60000000) { taxAmount = taxableIncome * 0.1421; taxRateInfo = "軽減税率 14.21%"; }
+                    else { taxAmount = (60000000 * 0.1421) + ((taxableIncome - 60000000) * 0.20315); taxRateInfo = "軽減税率(一部20.315%)"; }
+                } else { taxAmount = taxableIncome * 0.20315; taxRateInfo = "長期 20.315%"; }
+            } else { taxAmount = taxableIncome * 0.3963; taxRateInfo = "短期 39.63%"; }
+            taxAmount = Math.floor(taxAmount);
+            let profit = inp.sell - inp.sellExp - taxAmount;
+
+            updateReport(inp, master, isLongTerm, yearDiff, depAmount, formulaStr, landPrice, buildingPrice, addInherit, realCostTotal, gaisanCost, appliedCost, costVerdict, deduction, taxableIncome, taxRateInfo, taxAmount, profit, stdCalcData, calcMethodText, lifeCalcDetail);
+            currentCalculation = { id: Date.now(), inp: inp, result: { income: taxableIncome, tax: taxAmount, profit: profit } };
+
+        } catch (e) { alert("計算エラー: " + e.message); console.error(e); }
+    }
+
+    function getInput() {
+        // Parse dates using the custom parser
+        return {
+            client: val('clientName') || '(名称なし)', prop: val('propertyName') || '',
+            sell: num('sellPrice'), buyTotal: num('buyPriceTotal'), buyExp: num('buyExpenses'), sellExp: num('sellExpenses'),
+            buyDate: parseDate(val('buyDate')), sellDate: parseDate(val('sellDate')), buildDate: parseDate(val('buildDateMain')),
+            strIdx: val('structureSelect'), usage: val('usageType'),
+            deductionType: val('specialDeductionType'), deductionAmount: num('specialDeductionAmount'),
+            isReduced: document.getElementById('isReducedRate').checked, isInheritAdd: document.getElementById('isInheritanceAdd').checked, inheritTax: num('inheritanceTaxAmount'),
+            useStd: document.getElementById('useStandardPrice').checked, floorArea: num('floorArea'),
+            bookValue: num('bookValue'),
+            build: num('buildingPrice'), // ★FIX: 履歴復元用に建物価格を保存データに追加
+            datesStr: { buy: val('buyDate'), sell: val('sellDate'), build: val('buildDateMain') }
+        };
+    }
+    function val(id) { return document.getElementById(id).value; }
+    function num(id) { return Number(document.getElementById(id).value.replace(/,/g, '')); }
+    const fmt = n => Number(n).toLocaleString();
+
+    function updateReport(inp, master, isLong, yearDiff, depAmount, formulaStr, land, build, addInh, realCost, gaisan, applied, verdict, ded, income, taxRateTxt, tax, profit, stdData, calcMethodStr, lifeCalcDetail) {
+        setTxt('c_clientName', inp.client + " 様"); setTxt('c_date', new Date().toLocaleDateString());
+        setTxt('c_sellPrice', fmt(inp.sell) + " 円"); setTxt('c_totalExpenses', fmt(inp.buyExp + inp.sellExp) + " 円");
+        setTxt('c_depreciation', "▲ " + fmt(Math.floor(depAmount)) + " 円");
+        setTxt('c_income', fmt(income) + " 円"); document.getElementById('c_deduction_note').style.display = (ded > 0) ? 'block' : 'none';
+        setTxt('c_tax', fmt(tax) + " 円"); setTxt('c_profit', fmt(profit) + " 円");
+
+        setTxt('p_inp_client', inp.client); setTxt('p_inp_prop', inp.prop);
+        setTxt('p_inp_date_build', inp.datesStr.build); setTxt('p_inp_date_buy', inp.datesStr.buy); setTxt('p_inp_date_sell', inp.datesStr.sell);
+        setTxt('p_inp_structure', master.name); setTxt('p_inp_usage', (inp.usage==='non_business'?'非事業用':'事業用'));
+        setTxt('p_inp_sell', fmt(inp.sell)+"円"); setTxt('p_inp_buy_total', fmt(inp.buyTotal)+"円"); setTxt('p_inp_build', fmt(num('buildingPrice'))+"円");
+        setTxt('p_inp_exp_buy', fmt(inp.buyExp)+"円"); setTxt('p_inp_exp_sell', fmt(inp.sellExp)+"円");
+        let bvText = (inp.bookValue > 0) ? fmt(inp.bookValue)+"円" : "指定なし";
+        setTxt('p_inp_book', bvText);
+        
+        let dedName = inp.deductionType === 'none' ? "なし" : (inp.deductionType.includes('30m') ? "3000万控除" : "空き家特例");
+        setTxt('p_inp_deduction', dedName + " ("+fmt(inp.deductionAmount)+"円)");
+        setTxt('p_inp_reduced', inp.isReduced ? "適用" : "なし");
+        setTxt('p_inp_inherit', inp.isInheritAdd ? `適用 (+${fmt(inp.inheritTax)}円)` : "なし");
+        setTxt('p_inp_std', inp.useStd ? `標準額使用 (${inp.floorArea}㎡)` : "実額入力");
+
+        setTxt('p_term_str', isLong ? "長期譲渡" : "短期譲渡"); document.getElementById('p_term_str').style.color = isLong ? "blue" : "red";
+        setTxt('p_term_detail', `経過:${yearDiff}回正月`);
+        setTxt('p_dep_condition_str', calcMethodStr); setTxt('p_dep_life_calc', lifeCalcDetail);
+        setTxt('p_dep_formula_detail', formulaStr); setTxt('p_dep_val_detail', fmt(Math.floor(depAmount)) + " 円");
+        
+        setTxt('p_real_base', fmt(land + build)); setTxt('p_dep_val_sm', fmt(Math.floor(depAmount)));
+        setTxt('p_buy_exp', fmt(inp.buyExp + addInh)); setTxt('p_real_cost_val', fmt(Math.floor(realCost)) + " 円");
+        document.getElementById('p_std_note').style.display = inp.useStd ? 'block' : 'none';
+        setTxt('p_gaisan_val', fmt(gaisan) + " 円");
+        setTxt('p_applied_cost', fmt(Math.floor(applied)) + " 円"); setTxt('p_cost_verdict', `判定: ${verdict}有利`);
+
+        let dedTxt = (ded > 0) ? ` - 特別控除(${fmt(ded)})` : "";
+        setTxt('p_income_calc', `${fmt(inp.sell)} - ${fmt(Math.floor(applied))} - ${fmt(inp.sellExp)}${dedTxt}`);
+        setTxt('p_income_val', fmt(Math.floor(income)) + " 円");
+        setTxt('p_tax_rate_detail', taxRateTxt); setTxt('p_tax_calc', `${fmt(Math.floor(income))} × 税率`); setTxt('p_tax_final', fmt(tax) + " 円");
+
+        const stdSheet = document.getElementById('stdPriceSheet');
+        if(inp.useStd && stdData) {
+            stdSheet.style.display = 'block';
+            setTxt('std_buildDate', inp.buildDate.toLocaleDateString());
+            setTxt('std_unitPrice', fmt(stdData.unitPrice)); setTxt('std_area', inp.floorArea.toFixed(2));
+            setTxt('std_newPrice', fmt(stdData.newPrice));
+            const usedSec = document.getElementById('std_used_section');
+            if(stdData.elapsed > 0) {
+                usedSec.style.display = 'block';
+                setTxt('std_buyDate', inp.buyDate.toLocaleDateString()); setTxt('std_elapsed', stdData.elapsed);
+                setTxt('std_preDep', fmt(Math.floor(stdData.preDep))); setTxt('std_finalPrice', fmt(stdData.finalPrice));
+                setTxt('std_deductBuild', fmt(stdData.finalPrice));
+            } else { usedSec.style.display = 'none'; setTxt('std_deductBuild', fmt(stdData.newPrice)); }
+            setTxt('std_totalBuy', fmt(inp.buyTotal)); setTxt('std_landResult', fmt(inp.buyTotal - stdData.finalPrice));
+        } else { stdSheet.style.display = 'none'; }
+
+        document.getElementById('reportArea').style.display = 'block';
+        document.getElementById('reportArea').scrollIntoView({behavior:'smooth'});
+    }
+    function setTxt(id, txt) { document.getElementById(id).innerText = txt; }
+
+    // --- Data Functions ---
+    function getH() { return JSON.parse(localStorage.getItem('shisan_v70') || '[]'); }
+    function saveToHistory() { if(currentCalculation){ let h=getH(); h.push(currentCalculation); localStorage.setItem('shisan_v70', JSON.stringify(h)); renderHistory(); alert('保存しました'); } }
+    
+    function restoreData(id) {
+        const item = getH().find(i => i.id === id); if(!item || !item.inp) return;
+        const d = item.inp;
+        document.getElementById('clientName').value = d.client; document.getElementById('propertyName').value = d.prop;
+        const setM = (eid, v) => { const el = document.getElementById(eid); el.value = v; formatCurrency(el); };
+        setM('sellPrice', d.sell); setM('buyPriceTotal', d.buyTotal); setM('buyExpenses', d.buyExp); setM('sellExpenses', d.sellExp);
+        setM('specialDeductionAmount', d.deductionAmount); setM('inheritanceTaxAmount', d.inheritTax);
+        setM('bookValue', d.bookValue || 0); // Restore BookValue
+        document.getElementById('floorArea').value = d.floorArea || '';
+        document.getElementById('buyDate').value = d.datesStr.buy; document.getElementById('sellDate').value = d.datesStr.sell; document.getElementById('buildDateMain').value = d.datesStr.build;
+        document.getElementById('buildDate').value = d.datesStr.build;
+        document.getElementById('structureSelect').value = d.strIdx; document.getElementById('usageType').value = d.usage;
+        document.getElementById('specialDeductionType').value = d.deductionType; document.getElementById('isReducedRate').checked = d.isReduced;
+        document.getElementById('isInheritanceAdd').checked = d.isInheritAdd; document.getElementById('useStandardPrice').checked = d.useStd;
+        toggleDeductionInput(); toggleInheritanceInput(); updateBuildingInputState(); toggleBookValueInput();
+        if(!d.useStd) setM('buildingPrice', d.build || d.buildingPrice); // ★FIX: Added d.build support
+        switchTab('input'); calculate();
+    }
+
+    function renderHistory() {
+        const tb = document.getElementById('historyBody'); tb.innerHTML = '';
+        getH().slice().reverse().forEach(i => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td><input type="checkbox" class="h-chk" value="${i.id}"></td><td>${i.inp.client}<br><small>${i.inp.prop}</small></td><td>${fmt(i.inp.sell)}</td><td>${fmt(i.result.income)}</td><td style="color:#d9534f">${fmt(i.result.tax)}</td><td><button class="btn btn-restore" onclick="restoreData(${i.id})">📝 詳細・印刷</button> <button class="btn btn-danger" onclick="del(${i.id})">削除</button></td>`;
+            tb.appendChild(tr);
+        });
+    }
+    function del(id) { if(confirm('削除？')){ localStorage.setItem('shisan_v70', JSON.stringify(getH().filter(i=>i.id!==id))); renderHistory(); } }
+    function clearHistory() { if(confirm('全削除？')){ localStorage.removeItem('shisan_v70'); renderHistory(); } }
+    function toggleAll(e) { document.querySelectorAll('.h-chk').forEach(c => c.checked = e.checked); }
+    function exportSelected() {
+        let s = Array.from(document.querySelectorAll('.h-chk:checked')).map(c=>Number(c.value)); if(!s.length) return alert('選択してください');
+        let csv = "ID,Client,Prop,Sell,Profit\n" + getH().filter(i=>s.includes(i.id)).map(i=>`${i.id},${i.inp.client},${i.inp.prop},${i.inp.sell},${i.result.profit}`).join('\n');
+        let a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], {type:'text/csv'})); a.download='export.csv'; a.click();
+    }
+    function importCSV(inp) { alert("現在インポートは制限されています。"); inp.value=''; }
+
+    function renderMasterTable() {
+        const tb = document.getElementById('masterTableBody'), sel = document.getElementById('structureSelect');
+        tb.innerHTML = ''; sel.innerHTML = '';
+        defaultMaster.forEach((m, i) => {
+            tb.innerHTML += `<tr><td><input type="text" value="${m.name}" id="m_n_${i}"></td><td><input type="number" value="${m.life}" id="m_l_${i}" onchange="updateRates(${i},this.value)"></td><td><span id="m_r_nb_${i}" class="read-only-val"></span></td><td><span id="m_r_b_${i}" class="read-only-val"></span></td></tr>`;
+            let opt = document.createElement('option'); opt.value = i; opt.text = m.name; sel.appendChild(opt);
+            updateRates(i, m.life);
+        });
+    }
+    function updateRates(idx, life) {
+        let l = Number(life);
+        if(l > 0) {
+            document.getElementById(`m_r_nb_${idx}`).innerText = (Math.ceil((1/Math.floor(l*1.5))*1000)/1000).toFixed(3);
+            document.getElementById(`m_r_b_${idx}`).innerText = (Math.ceil((1/l)*1000)/1000).toFixed(3);
+        }
+    }
+    function getMasterRow(i) { return { name: val(`m_n_${i}`), life: Number(val(`m_l_${i}`)) }; }
+    function getStandardUnitPrice(year, strIdx) {
+        let col = (strIdx == 2) ? 1 : (strIdx > 2) ? 3 : 0;
+        let price = STD_PRICES.ranges[0].p[col];
+        for(let r of STD_PRICES.ranges) { if(year >= r.y) price = r.p[col]; }
+        return price * 1000;
+    }
+    function renderStdRefTables() {
+        const ids = ['stdRefTableBody', 'stdRefTableBody2'];
+        ids.forEach(id => {
+            const tb = document.getElementById(id); if(!tb) return; tb.innerHTML = '';
+            STD_PRICES.ranges.forEach(r => {
+                tb.innerHTML += `<tr><td>${r.y}年〜</td><td>${r.p[0]}</td><td>${r.p[1]}</td><td>${r.p[2]}</td><td>${r.p[3]}</td></tr>`;
+            });
+        });
+    }
+    function switchTab(n) {
+        document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+        document.getElementById('tab-' + n).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+    function toggleAdvanced() { 
+        const b = document.getElementById('advancedBody'), h = document.querySelector('.advanced-header');
+        b.style.display = (b.style.display === 'block') ? 'none' : 'block';
+        h.classList.toggle('open');
+    }
+    function toggleStandardCalc() {
+        const b = document.getElementById('standardCalcBody'), h = b.previousElementSibling;
+        b.style.display = (b.style.display === 'block') ? 'none' : 'block';
+        h.classList.toggle('open');
+    }
+    function updateBuildingInputState() {
+        const use = document.getElementById('useStandardPrice').checked;
+        document.getElementById('manualBuildingInput').style.opacity = use ? '0.5' : '1';
+        document.getElementById('buildingPrice').disabled = use;
+    }
+    function toggleDeductionInput() {
+        const t = val('specialDeductionType'), i = document.getElementById('specialDeductionAmount');
+        i.disabled = (t === 'none'); i.style.background = (t === 'none') ? '#eee' : '#fff';
+        if(t === 'none') i.value = 0;
+        else if(t.includes('30m') || t.includes('house')) i.value = "30,000,000";
+    }
+    function toggleInheritanceInput() {
+        document.getElementById('inheritanceTaxAmount').style.display = document.getElementById('isInheritanceAdd').checked ? 'block' : 'none';
+    }
+    function syncBuildDate(val) { document.getElementById('buildDate').value = val; }
+</script>
+
+</body>
+</html>
